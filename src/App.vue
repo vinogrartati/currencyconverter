@@ -69,7 +69,7 @@
 					<div
 						v-for="t in tickers"
 						:key="t.name"
-						@click="sel = t"
+						@click="select(t)"
 						:class="{
 							'border-4': sel === t
 						}"
@@ -111,20 +111,54 @@
 				<h3 class="text-lg leading-6 font-medium text-gray-900 my-8">
 					{{ sel.name }} - USD
 				</h3>
-				<div class="flex items-end border-gray-600 border-b border-l h-64">
-					<div
-						class="bg-purple-800 border w-10 h-24"
-					></div>
-					<div
-						class="bg-purple-800 border w-10 h-32"
-					></div>
-					<div
-						class="bg-purple-800 border w-10 h-48"
-					></div>
-					<div
-						class="bg-purple-800 border w-10 h-16"
-					></div>
+
+				<div class="max-w-xs">
+					<label for="wallet" class="block text-sm font-medium text-gray-700"
+					>Начало периода</label
+					>
+					<div class="mt-1 relative rounded-md shadow-md my-4">
+						<input
+								v-model="startDate"
+								type="date"
+								name="startDate"
+								id="startDate"
+								class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
+						/>
+					</div>
+					<label for="wallet" class="block text-sm font-medium text-gray-700"
+					>Конец периода</label
+					>
+					<div class="mt-1 relative rounded-md shadow-md my-4">
+						<input
+								v-model="endDate"
+								type="date"
+								name="endDate"
+								id="endDate"
+								class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
+						/>
+					</div>
+
+					<button
+							@click="getGraph(sel.name, startDate, endDate)"
+							type="button"
+							class="my-4 inline-flex items-center py-2 px-4 border border-transparent shadow-sm text-sm leading-4 font-medium rounded-full text-white bg-gray-600 hover:bg-gray-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+					>
+						Показать
+					</button>
 				</div>
+				<template v-if="0 < graph.length">
+					<div class="flex items-end border-gray-600 border-b border-l h-64">
+						<div
+							v-for="(bar, i) in normalizeGraph()"
+							:key="i"
+							:style="{
+								height: `${bar}%`
+							}"
+							class="bg-purple-800 border"
+						>
+						</div>
+					</div>
+				</template>
 				<button
 					@click="sel = null"
 					type="button"
@@ -133,13 +167,11 @@
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						xmlns:xlink="http://www.w3.org/1999/xlink"
-						version="1.1"
 						width="30"
 						height="30"
 						x="0"
 						y="0"
 						viewBox="0 0 511.76 511.76"
-						style="enable-background:new 0 0 512 512"
 						xml:space="preserve"
 						xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://svgjs.com/svgjs ">
 					<g>
@@ -165,6 +197,9 @@ export default {
 			ticker:  '',
 			tickers: [],
 			sel: null,
+			startDate: null,
+			endDate: null,
+			graph: [],
 		};
 	},
 	methods: {
@@ -176,13 +211,26 @@ export default {
 
 			this.tickers.push(newTicker);
 			this.getPrice(newTicker.name).then((p) => {
-				this.tickers.find(t => t.name === newTicker.name).price = p;
+				this.tickers.find(t => t.name === newTicker.name).price = p > 1 ? p.toFixed(2) : p.toPrecision(2);
 			});
 			this.ticker = '';
 		},
 
 		handleDelete(ticker) {
 			this.tickers = this.tickers.filter(t => ticker !== t);
+		},
+
+		select(ticker) {
+			this.sel = ticker;
+			this.startDate = null;
+			this.endDate = null;
+			this.graph = [];
+		},
+
+		normalizeGraph() {
+			const maxValue = Math.max(...this.graph);
+			const minValue = Math.min(...this.graph);
+			return this.graph.map((price) => 5 + ((price - minValue) * 95) / (maxValue - minValue));
 		},
 
 		async getPrice(name) {
@@ -194,10 +242,22 @@ export default {
 
 			const data = await f.json();
 			return await Object.values(data.rates)[0];
+		},
+
+		async getGraph(name, start, end) {
+			this.graph = [];
+			const f = await fetch(`https://api.apilayer.com/exchangerates_data/timeseries?start_date=${start}&end_date=${end}&base=USD&symbols=${name}`, {
+				headers: {
+					'apikey': 'C9QUaFBz65U7y2lYRhn4NdaIvQhCv6BB',
+				}
+			});
+			const data = await f.json();
+			Object.values(data.rates).forEach((i) => {
+				this.graph.push(...Object.values(i));
+			}
+			);
+
 		}
 	}
 }
 </script>
-
-<style src="./app.css">
-</style>
