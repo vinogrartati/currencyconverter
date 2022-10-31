@@ -17,29 +17,24 @@
 							<input
 								v-model="ticker"
 								@keydown.enter="addTicker"
-								@keyup="addVariants"
+								@input="addVariants"
 								type="text"
 								name="wallet"
 								id="wallet"
 								class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
-								placeholder="Например DOGE"
+								placeholder="Например RUB"
 							/>
 						</div>
-						<div class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
-							<span class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-								BTC
-							</span>
-							<span class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-								DOGE
-							</span>
-							<span class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-								BCH
-							</span>
-							<span class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-								CHD
+						<div v-if="0 < variants.length" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
+							<span
+									@click="ticker = variant"
+									v-for="(variant, index) in variants"
+									:key="index"
+									class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
+								{{ variant}}
 							</span>
 						</div>
-						<div class="text-sm text-red-600">Такой тикер уже добавлен</div>
+						<div v-if="isTickerExists" class="text-sm text-red-600">Такой тикер уже добавлен</div>
 					</div>
 				</div>
 				<button
@@ -203,6 +198,8 @@ export default {
 			graph: [],
 			isLoading: true,
 			symbols: null,
+			variants: [],
+			isTickerExists: false,
 		};
 	},
 	mounted() {
@@ -217,15 +214,24 @@ export default {
 				price: '-'
 			};
 
+			this.ticker = '';
+			this.isTickerExists = !!this.tickers.find(t => t.name === newTicker.name);
+			if (this.isTickerExists) {
+				return;
+			}
+
 			this.tickers.push(newTicker);
+			this.variants = [];
 			this.getPrice(newTicker.name).then((p) => {
 				this.tickers.find(t => t.name === newTicker.name).price = p > 1 ? p.toFixed(2) : p.toPrecision(2);
 			});
-			this.ticker = '';
 		},
 
 		handleDelete(ticker) {
 			this.tickers = this.tickers.filter(t => ticker !== t);
+			if (ticker === this.sel) {
+				this.sel = null;
+			}
 		},
 
 		select(ticker) {
@@ -236,9 +242,7 @@ export default {
 		},
 
 		addVariants() {
-
 			const tickerLetters = this.ticker.toUpperCase().split('');
-
 			const result = this.symbols.filter((symbol) => {
 				let condition = true;
 				tickerLetters.forEach((s, i) => {
@@ -248,7 +252,7 @@ export default {
 				});
 				return condition;
 			});
-			console.log(result);
+			this.variants = 3 < result.length ? result.slice(0, 4) : result;
 		},
 
 		normalizeGraph() {
