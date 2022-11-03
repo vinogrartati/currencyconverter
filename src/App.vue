@@ -1,11 +1,11 @@
 <template>
 	<div class="container mx-auto flex flex-col items-center bg-gray-100 p-4">
-<!--		<div class="fixed w-100 h-100 opacity-80 bg-purple-800 inset-0 z-50 flex items-center justify-center">
+		<div v-if="isLoading" class="fixed w-100 h-100 opacity-80 bg-purple-800 inset-0 z-50 flex items-center justify-center">
 			<svg class="animate-spin -ml-1 mr-3 h-12 w-12 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
 				<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
 				<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
 			</svg>
-		</div>-->
+		</div>
 		<div class="container">
 			<section>
 				<div class="flex">
@@ -17,28 +17,24 @@
 							<input
 								v-model="ticker"
 								@keydown.enter="addTicker"
+								@input="addVariants"
 								type="text"
 								name="wallet"
 								id="wallet"
 								class="block w-full pr-10 border-gray-300 text-gray-900 focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm rounded-md"
-								placeholder="Например DOGE"
+								placeholder="Например RUB"
 							/>
 						</div>
-						<div class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
-							<span class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-								BTC
-							</span>
-							<span class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-								DOGE
-							</span>
-							<span class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-								BCH
-							</span>
-							<span class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
-								CHD
+						<div v-if="0 < variants.length" class="flex bg-white shadow-md p-1 rounded-md shadow-md flex-wrap">
+							<span
+									@click="ticker = variant"
+									v-for="(variant, index) in variants"
+									:key="index"
+									class="inline-flex items-center px-2 m-1 rounded-md text-xs font-medium bg-gray-300 text-gray-800 cursor-pointer">
+								{{ variant}}
 							</span>
 						</div>
-						<div class="text-sm text-red-600">Такой тикер уже добавлен</div>
+						<div v-if="isTickerExists" class="text-sm text-red-600">Такой тикер уже добавлен</div>
 					</div>
 				</div>
 				<button
@@ -200,7 +196,16 @@ export default {
 			startDate: null,
 			endDate: null,
 			graph: [],
+			isLoading: true,
+			symbols: null,
+			variants: [],
+			isTickerExists: false,
 		};
+	},
+	mounted() {
+		setTimeout(() => this.isLoading = false, 100);
+
+		this.getSymbols();
 	},
 	methods: {
 		addTicker() {
@@ -209,15 +214,24 @@ export default {
 				price: '-'
 			};
 
+			this.ticker = '';
+			this.isTickerExists = !!this.tickers.find(t => t.name === newTicker.name);
+			if (this.isTickerExists) {
+				return;
+			}
+
 			this.tickers.push(newTicker);
+			this.variants = [];
 			this.getPrice(newTicker.name).then((p) => {
 				this.tickers.find(t => t.name === newTicker.name).price = p > 1 ? p.toFixed(2) : p.toPrecision(2);
 			});
-			this.ticker = '';
 		},
 
 		handleDelete(ticker) {
 			this.tickers = this.tickers.filter(t => ticker !== t);
+			if (ticker === this.sel) {
+				this.sel = null;
+			}
 		},
 
 		select(ticker) {
@@ -227,10 +241,35 @@ export default {
 			this.graph = [];
 		},
 
+		addVariants() {
+			const tickerLetters = this.ticker.toUpperCase().split('');
+			const result = this.symbols.filter((symbol) => {
+				let condition = true;
+				tickerLetters.forEach((s, i) => {
+					if (s !== symbol[i]) {
+						condition = false;
+					}
+				});
+				return condition;
+			});
+			this.variants = 3 < result.length ? result.slice(0, 4) : result;
+		},
+
 		normalizeGraph() {
 			const maxValue = Math.max(...this.graph);
 			const minValue = Math.min(...this.graph);
 			return this.graph.map((price) => 5 + ((price - minValue) * 95) / (maxValue - minValue));
+		},
+
+		async getSymbols() {
+			const f = await fetch(`https://api.apilayer.com/exchangerates_data/symbols`, {
+				headers: {
+					'apikey': 'C9QUaFBz65U7y2lYRhn4NdaIvQhCv6BB',
+				}
+			});
+
+			const data = await f.json();
+			this.symbols = Object.keys(data.symbols);
 		},
 
 		async getPrice(name) {
@@ -258,6 +297,6 @@ export default {
 			);
 
 		}
-	}
+	},
 }
 </script>
