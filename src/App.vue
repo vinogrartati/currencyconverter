@@ -202,6 +202,16 @@ export default {
 			isTickerExists: false,
 		};
 	},
+	created() {
+		const tickersData = localStorage.getItem('currency-list');
+
+		if (tickersData) {
+			this.tickers = JSON.parse(tickersData);
+			this.tickers.forEach(t => {
+				this.getPrice(t.name);
+			})
+		}
+	},
 	mounted() {
 		setTimeout(() => this.isLoading = false, 100);
 
@@ -210,25 +220,27 @@ export default {
 	methods: {
 		addTicker() {
 			const newTicker = {
-				name:  this.ticker,
+				name:  this.ticker.toUpperCase(),
 				price: '-'
 			};
 
 			this.ticker = '';
+			this.variants = [];
 			this.isTickerExists = !!this.tickers.find(t => t.name === newTicker.name);
 			if (this.isTickerExists) {
 				return;
 			}
 
 			this.tickers.push(newTicker);
-			this.variants = [];
-			this.getPrice(newTicker.name).then((p) => {
-				this.tickers.find(t => t.name === newTicker.name).price = p > 1 ? p.toFixed(2) : p.toPrecision(2);
-			});
+
+			localStorage.setItem('currency-list', JSON.stringify(this.tickers));
+
+			this.getPrice(newTicker.name);
 		},
 
 		handleDelete(ticker) {
 			this.tickers = this.tickers.filter(t => ticker !== t);
+			localStorage.setItem('currency-list', JSON.stringify(this.tickers));
 			if (ticker === this.sel) {
 				this.sel = null;
 			}
@@ -280,7 +292,8 @@ export default {
 			});
 
 			const data = await f.json();
-			return await Object.values(data.rates)[0];
+			const price = Object.values(data.rates)[0];
+			this.tickers.find(t => t.name === name).price = price > 1 ? price.toFixed(2) : price.toPrecision(2);
 		},
 
 		async getGraph(name, start, end) {
